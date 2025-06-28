@@ -1,0 +1,2 @@
+# ichimonittou
+Luyện kaiwa ichimonittou
