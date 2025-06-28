@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Japanese Questions Interface</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for multi-select and improved aesthetics */
+        select[multiple] {
+            height: 150px;
+            width: 200px;
+            background-color: #f9fafb;
+            border-radius: 0.5rem;
+            padding: 0.5rem;
+        }
+        select[multiple] option {
+            padding: 0.25rem;
+        }
+        select[multiple] option:checked {
+            background-color: #4f46e5;
+            color: white;
+        }
+        .gradient-bg {
+            background: linear-gradient(to bottom right, #e0f2fe, #e0e7ff);
+        }
+        .question-card {
+            transition: all 0.3s ease;
+        }
+        .question-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body class="gradient-bg font-sans min-h-screen">
+    <div class="container mx-auto p-6">
+        <h1 class="text-4xl font-extrabold text-center text-indigo-800 mb-8">Japanese Questions with Audio</h1>
+        
+        <!-- Playback Controls -->
+        <div class="mb-8 flex justify-center space-x-4">
+            <button id="playAllBtn" class="bg-teal-500 text-white px-6 py-3 rounded-lg hover:bg-teal-600 transition duration-200 shadow-md">Play All</button>
+            <button id="playLessonBtn" class="bg-indigo-500 text-white px-6 py-3 rounded-lg hover:bg-indigo-600 transition duration-200 shadow-md">Play by Lesson</button>
+            <button id="stopBtn" class="bg-red-500 text-white px-6 py-3 rounded-lg hover:bg-red-600 transition duration-200 shadow-md">Stop</button>
+        </div>
+
+        <!-- Lesson Selection (hidden by default) -->
+        <div id="lessonSelectContainer" class="hidden mb-8 flex justify-center space-x-4">
+            <select id="lessonSelect" multiple class="border border-gray-300 focus:ring-2 focus:ring-indigo-500">
+                <option value="">Select Lessons</option>
+            </select>
+            <button id="confirmBtn" class="bg-teal-500 text-white px-4 py-2 rounded-lg hover:bg-teal-600 transition duration-200 shadow-md">Confirm</button>
+        </div>
+
+        <!-- Error Message Container -->
+        <div id="errorMessage" class="hidden text-red-600 text-center mb-6 bg-red-100 p-3 rounded-lg"></div>
+
+        <!-- Questions Container -->
+        <div id="questionsContainer" class="space-y-6"></div>
+    </div>
+
+    <script>
+        // Sample question data (replace audioUrl with actual audio file paths)
+        const questions = [
+            { lesson: 1, id: "1.1", text: "お名前は何ですか。", audioUrl: "audio/1_1.mp3" },
+            { lesson: 1, id: "1.2", text: "お国はどちらですか。", audioUrl: "audio/1_2.mp3" },
+            { lesson: 1, id: "1.3", text: "会社の名前は何ですか。", audioUrl: "audio/1_3.mp3" },
+            { lesson: 1, id: "1.4", text: "組合の名前は何ですか。", audioUrl: "audio/1_4.mp3" },
+            { lesson: 1, id: "1.5", text: "あなたの仕事は何ですか。", audioUrl: "audio/1_5.mp3" },
+            { lesson: 1, id: "1.6", text: "あなたは実習生ですか。", audioUrl: "audio/1_6.mp3" },
+            { lesson: 1, id: "1.7", text: "今年は何歳ですか。", audioUrl: "audio/1_7.mp3" },
+            { lesson: 3, id: "3.1", text: "出身はどこですか。", audioUrl: "audio/3_1.mp3" },
+            { lesson: 3, id: "3.2", text: "寮はどこですか。", audioUrl: "audio/3_2.mp3" },
+            { lesson: 3, id: "3.3", text: "トイレはどこですか。", audioUrl: "audio/3_3.mp3" },
+            { lesson: 3, id: "3.4", text: "事務所はどこですか。", audioUrl: "audio/3_4.mp3" },
+            { lesson: 3, id: "3.5", text: "教室は何階ですか。", audioUrl: "audio/3_5.mp3" },
+            { lesson: 3, id: "3.6", text: "あなたの寮は2階ですか。", audioUrl: "audio/3_6.mp3" },
+            { lesson: 3, id: "3.7", text: "会議室はどこですか。", audioUrl: "audio/3_7.mp3" },
+            { lesson: 4, id: "4.1", text: "毎日、何時に起きますか", audioUrl: "audio/4_1.mp3" },
+            { lesson: 4, id: "4.2", text: "毎日、何時に寝ますか", audioUrl: "audio/4_2.mp3" },
+            { lesson: 4, id: "4.3", text: "毎日、何時から何時まで日本語を勉強しますか", audioUrl: "audio/4_3.mp3" },
+            { lesson: 4, id: "4.4", text: "昼休みは何時から何時までですか。", audioUrl: "audio/4_4.mp3" },
+            { lesson: 4, id: "4.5", text: "今日は何月何日何曜日ですか。", audioUrl: "audio/4_5.mp3" },
+            { lesson: 4, id: "4.6", text: "日曜日、勉強しますか。", audioUrl: "audio/4_6.mp3" },
+            { lesson: 4, id: "4.7", text: "昨日、勉強しましたか Penalizedか。", audioUrl: "audio/4_7.mp3" },
+            { lesson: 5, id: "5.1", text: "日曜日、どこへ行きますか。", audioUrl: "audio/5_1.mp3" },
+            { lesson: 5, id: "5.2", text: "いつ日本へ行きますか。", audioUrl: "audio/5_2.mp3" },
+            { lesson: 5, id: "5.3", text: "誰と日本へ行きますか。", audioUrl: "audio/5_3.mp3" },
+            { lesson: 5, id: "5.4", text: "いつ家へ帰りますか。", audioUrl: "audio/5_4.mp3" },
+            { lesson: 5, id: "5.5", text: "何で家へ帰りますか。", audioUrl: "audio/5_5.mp3" },
+            { lesson: 5, id: "5.6", text: "誕生日はいつですか。", audioUrl: "audio/5_6.mp3" },
+            { lesson: 5, id: "5.7", text: "昨日は何曜日でしたか。", audioUrl: "audio/5_7.mp3" },
+            { lesson: 6, id: "6.1", text: "タバコを吸いますか。", audioUrl: "audio/6_1.mp3" },
+            { lesson: 6, id: "6.2", text: "ビールを飲みますか。", audioUrl: "audio/6_2.mp3" },
+            { lesson: 6, id: "6.3", text: "けさ、何を食べましたか。", audioUrl: "audio/6_3.mp3" },
+            { lesson: 6, id: "6.4", text: "今週末、何をしますか。", audioUrl: "audio/6_4.mp3" },
+            { lesson: 6, id: "6.5", text: "どこで昼ごはんを食べますか。", audioUrl: "audio/6_5.mp3" },
+            { lesson: 6, id: "6.6", text: "夜、何をしますか。", audioUrl: "audio/6_6.mp3" },
+            { lesson: 6, id: "6.7", text: "昨日、何をしましたか。", audioUrl: "audio/6_7.mp3" },
+            { lesson: 7, id: "7.1", text: "昨日、宿題をしましたか。", audioUrl: "audio/7_1.mp3" },
+            { lesson: 7, id: "7.2", text: "もう朝ごはんを食べましたか。", audioUrl: "audio/7_2.mp3" },
+            { lesson: 7, id: "7.3", text: "何で朝ごはんを食べましたか。", audioUrl: "audio/7_3.mp3" },
+            { lesson: 7, id: "7.4", text: "昨日、家族に電話をかけましたか", audioUrl: "audio/7_4.mp3" },
+            { lesson: 7, id: "7.5", text: "去年の誕生日にプレゼントをもらいましたか。", audioUrl: "audio/7_5.mp3" },
+            { lesson: 7, id: "7.6", text: "何で日本語を勉強しますか。", audioUrl: "audio/7_6.mp3" },
+            { lesson: 7, id: "7.7", text: "去年の母の誕生日に何を買いましたか。", audioUrl: "audio/7_7.mp3" },
+            { lesson: 8, id: "8.1", text: "日本語は　どうですか", audioUrl: "audio/8_1.mp3" },
+            { lesson: 8, id: "8.2", text: "日本はどんな国ですか。", audioUrl: "audio/8_2.mp3" },
+            { lesson: 8, id: "8.3", text: "田舎はどちらですか。どんなところですか。", audioUrl: "audio/8_3.mp3" },
+            { lesson: 8, id: "8.4", text: "ホーチミン市はどんなまちですか。", audioUrl: "audio/8_4.mp3" },
+            { lesson: 8, id: "8.5", text: "日本の食べ物はどうですか。", audioUrl: "audio/8_5.mp3" },
+            { lesson: 8, id: "8.6", text: "どんなスポーツが好きですか。", audioUrl: "audio/8_6.mp3" },
+            { lesson: 8, id: "8.7", text: "どんなベトナム料理が好きですか。", audioUrl: "audio/8_7.mp3" },
+            { lesson: 9, id: "9.1", text: "好きな歌は何ですか。", audioUrl: "audio/9_1.mp3" },
+            { lesson: 9, id: "9.2", text: "どんな飲み物が好きですか。", audioUrl: "audio/9_2.mp3" },
+            { lesson: 9, id: "9.3", text: "好きな食べ物はなんですか。きらいな食べ物はなんですか。", audioUrl: "audio/9_3.mp3" },
+            { lesson: 9, id: "9.4", text: "英語が　分かりますか。", audioUrl: "audio/9_4.mp3" },
+            { lesson: 9, id: "9.5", text: "日本語が　分かりますか。", audioUrl: "audio/9_5.mp3" },
+            { lesson: 9, id: "9.6", text: "料理が上手ですか。", audioUrl: "audio/9_6.mp3" },
+            { lesson: 9, id: "9.7", text: "歌が上手ですか。", audioUrl: "audio/9_7.mp3" },
+            { lesson: 10, id: "10.1", text: "今、どこにいますか。", audioUrl: "audio/10_1.mp3" },
+            { lesson: 10, id: "10.2", text: "うちに犬がいますか。", audioUrl: "audio/10_2.mp3" },
+            { lesson: 10, id: "10.3", text: "うちの近くに何がありますか。", audioUrl: "audio/10_3.mp3" },
+            { lesson: 10, id: "10.4", text: "部屋に時計がありますか", audioUrl: "audio/10_4.mp3" },
+            { lesson: 10, id: "10.5", text: "センターの近くに何がありますか。", audioUrl: "audio/10_5.mp3" },
+            { lesson: 10, id: "10.6", text: "教室に今誰がいますか。", audioUrl: "audio/10_6.mp3" },
+            { lesson: 10, id: "10.7", text: "机の上に何がありますか。", audioUrl: "audio/10_7.mp3" },
+            { lesson: 11, id: "11.1", text: "うちにテレビが何台ありますか。", audioUrl: "audio/11_1.mp3" },
+            { lesson: 11, id: "11.2", text: "うちにバイクが何台ありますか。", audioUrl: "audio/11_2.mp3" },
+            { lesson: 11, id: "11.3", text: "家族は何人いますか。", audioUrl: "audio/11_3.mp3" },
+            { lesson: 11, id: "11.4", text: "センターから田舎までどのぐらいかかりますか。", audioUrl: "audio/11_4.mp3" },
+            { lesson: 11, id: "11.5", text: "うちに部屋がいくつありますか。", audioUrl: "audio/11_5.mp3" },
+            { lesson: 11, id: "11.6", text: "センターに日本人の教師がいますか。何人いますか。", audioUrl: "audio/11_6.mp3" },
+            { lesson: 11, id: "11.7", text: "1ヶ月に何回家へ帰りますか。", audioUrl: "audio/11_7.mp3" },
+            { lesson: 12, id: "12.1", text: "昨日の天気はどうでしたか。", audioUrl: "audio/12_1.mp3" },
+            { lesson: 12, id: "12.2", text: "一年でいつが一番好きですか。", audioUrl: "audio/12_2.mp3" },
+            { lesson: 12, id: "12.3", text: "ベトナムでどこが一番有名ですか。", audioUrl: "audio/12_3.mp3" },
+            { lesson: 12, id: "12.4", text: "ベトナム料理で何が一番好きですか。", audioUrl: "audio/12_4.mp3" },
+            { lesson: 12, id: "12.5", text: "家族でだれが一番歌が上手ですか。", audioUrl: "audio/12_5.mp3" },
+            { lesson: 12, id: "12.6", text: "お父さんとお母さんとどちらが料理が上手ですか。", audioUrl: "audio/12_6.mp3" },
+            { lesson: 12, id: "12.7", text: "魚と肉とどちらがすきですか。", audioUrl: "audio/12_7.mp3" },
+            { lesson: 13, id: "13.1", text: "週末　何を　したいですか", audioUrl: "audio/13_1.mp3" },
+            { lesson: 13, id: "13.2", text: "どうして、日本へ　行きたいですか", audioUrl: "audio/13_2.mp3" },
+            { lesson: 13, id: "13.3", text: "日本へ　行ってから、何を　したいですか", audioUrl: "audio/13_3.mp3" },
+            { lesson: 13, id: "13.4", text: "今、何がいちばん　ほしいですか。", audioUrl: "audio/13_4.mp3" },
+            { lesson: 13, id: "13.5", text: "今、だれに一番会いたいですか。", audioUrl: "audio/13_5.mp3" },
+            { lesson: 13, id: "13.6", text: "どんな人と結婚したいですか。", audioUrl: "audio/13_6.mp3" },
+            { lesson: 13, id: "13.7", text: "将来、どこで　働きたいですか", audioUrl: "audio/13_7.mp3" },
+            { lesson: 14, id: "14.1", text: "今雨が降っていますか。", audioUrl: "audio/14_1.mp3" },
+            { lesson: 14, id: "14.2", text: "今何をしていますか。", audioUrl: "audio/14_2.mp3" },
+            { lesson: 14, id: "14.3", text: "会社と組合の名前を教えてください。", audioUrl: "audio/14_3.mp3" },
+            { lesson: 14, id: "14.4", text: "生年月日を教えてください。", audioUrl: "audio/14_4.mp3" },
+            { lesson: 14, id: "14.5", text: "電話番号を教えてください。", audioUrl: "audio/14_5.mp3" },
+            { lesson: 14, id: "14.6", text: "会社と組合の住所を教えてください。", audioUrl: "audio/14_6.mp3" },
+            { lesson: 14, id: "14.7", text: "今勉強していますか。", audioUrl: "audio/14_7.mp3" },
+            { lesson: 15, id: "15.1", text: "休みの日、何を　していますか。", audioUrl: "audio/15_1.mp3" },
+            { lesson: 15, id: "15.2", text: "今、どこに　住んでいますか。", audioUrl: "audio/15_2.mp3" },
+            { lesson: 15, id: "15.3", text: "結婚していますか。", audioUrl: "audio/15_3.mp3" },
+            { lesson: 15, id: "15.4", text: "日本で　一番高い山を　しっていますか。", audioUrl: "audio/15_4.mp3" },
+            { lesson: 15, id: "15.5", text: "工場で　何を　してはいけませんか。", audioUrl: "audio/15_5.mp3" },
+            { lesson: 15, id: "15.6", text: "美術館で　写真を　撮ってもいいですか。", audioUrl: "audio/15_6.mp3" },
+            { lesson: 15, id: "15.7", text: "ベトナムで　どんな日本の　製品を　売っていますか。", audioUrl: "audio/15_7.mp3" },
+            { lesson: 16, id: "16.1", text: "日本へ　行ってから、何を　したいですか。", audioUrl: "audio/16_1.mp3" },
+            { lesson: 16, id: "16.2", text: "日本へ　行ってから、どこに　行きたいですか。", audioUrl: "audio/16_2.mp3" },
+            { lesson: 16, id: "16.3", text: "朝　起きて、何を　しますか。", audioUrl: "audio/16_3.mp3" },
+            { lesson: 16, id: "16.4", text: "昨日の晩、ご飯を　食べてから　何を　しましたか。", audioUrl: "audio/16_4.mp3" },
+            { lesson: 16, id: "16.5", text: "日本で　３年間　働いて、国へ　帰ってから、何を　しますか。", audioUrl: "audio/16_5.mp3" },
+            { lesson: 16, id: "16.6", text: "ベトナムの料理は　どうですか。（くて、で）", audioUrl: "audio/16_6.mp3" },
+            { lesson: 16, id: "16.7", text: "お母さんは、どんな人ですか。（くて、で）", audioUrl: "audio/16_7.mp3" },
+            { lesson: 17, id: "17.1", text: "病気です。何を　しなければなりませんか。", audioUrl: "audio/17_1.mp3" },
+            { lesson: 17, id: "17.2", text: "毎日　宿題を　しなければなりませんか。", audioUrl: "audio/17_2.mp3" },
+            { lesson: 17, id: "17.3", text: "ベトナムで　子供は　何歳から　学校へ　行かなければなりませんか。", audioUrl: "audio/17_3.mp3" },
+            { lesson: 17, id: "17.4", text: "毎日、日本語を　話さなければなりませんか。", audioUrl: "audio/17_4.mp3" },
+            { lesson: 17, id: "17.5", text: "毎日、何時に　起きなければなりませんか。", audioUrl: "audio/17_5.mp3" },
+            { lesson: 17, id: "17.6", text: "日曜日でも、働かなければなりませんか。", audioUrl: "audio/17_6.mp3" },
+            { lesson: 17, id: "17.7", text: "日本へ　行きます。何を　持って行かなければなりませんか。", audioUrl: "audio/17_7.mp3" },
+            { lesson: 18, id: "18.1", text: "泳ぐことができますか。何メートルくらい　できますか。", audioUrl: "audio/18_1.mp3" },
+            { lesson: 18, id: "18.2", text: "趣味は　何ですか。", audioUrl: "audio/18_2.mp3" },
+            { lesson: 18, id: "18.3", text: "日本語で　歌を　歌うことができますか。", audioUrl: "audio/18_3.mp3" },
+            { lesson: 18, id: "18.4", text: "昨日、寝る前に、何を　しましたか。", audioUrl: "audio/18_4.mp3" },
+            { lesson: 18, id: "18.5", text: "日本へ　行く前に、だれに　一番会いたいですか。", audioUrl: "audio/18_5.mp3" },
+            { lesson: 18, id: "18.6", text: "ご飯を　食べる前に　手を　洗いますか。", audioUrl: "audio/18_6.mp3" },
+            { lesson: 18, id: "18.7", text: "漢字を　読むことが　できますか。いくつぐらい　読むことができますか。", audioUrl: "audio/18_7.mp3" },
+            { lesson: 19, id: "19.1", text: "日本で　何をしたいですか。（～たり～たり）", audioUrl: "audio/19_1.mp3" },
+            { lesson: 19, id: "19.2", text: "日本料理を　食べたことがありますか。どこで　食べましたか。", audioUrl: "audio/19_2.mp3" },
+            { lesson: 19, id: "19.3", text: "ダイエットしたことが　ありますか。", audioUrl: "audio/19_3.mp3" },
+            { lesson: 19, id: "19.4", text: "次の誕生日に、何歳に　なりますか。", audioUrl: "audio/19_4.mp3" },
+            { lesson: 19, id: "19.5", text: "ベトナムの　どこへ　旅行に　行ったことが　ありますか。どんな所でしたか。", audioUrl: "audio/19_5.mp3" },
+            { lesson: 19, id: "19.6", text: "日本語が　上手になりましたか。", audioUrl: "audio/19_6.mp3" },
+            { lesson: 19, id: "19.7", text: "日曜日、何を　しますか。（～たり～たり）", audioUrl: "audio/19_7.mp3" },
+            { lesson: 20, id: "20.1", text: "果物で　何が一番好き?", audioUrl: "audio/20_1.mp3" },
+            { lesson: 20, id: "20.2", text: "漢字が　いくつ　分かる?", audioUrl: "audio/20_2.mp3" },
+            { lesson: 20, id: "20.3", text: "ベトナムと　日本と　どっちが　人が多い?", audioUrl: "audio/20_3.mp3" },
+            { lesson: 20, id: "20.4", text: "日本の映画を　見たことがある?", audioUrl: "audio/20_4.mp3" },
+            { lesson: 20, id: "20.5", text: "仕事は　何?", audioUrl: "audio/20_5.mp3" },
+            { lesson: 20, id: "20.6", text: "車を　運転することが　できる?", audioUrl: "audio/20_6.mp3" },
+            { lesson: 20, id: "20.7", text: "今、誰と　住んでる?", audioUrl: "audio/20_7.mp3" },
+            { lesson: 21, id: "21.1", text: "日本人は　ご飯を　食べるまえに　何と言いますか。", audioUrl: "audio/21_1.mp3" },
+            { lesson: 21, id: "21.2", text: "日本人は　仕事が　終わって、うちへ　帰る前に　何と言いますか。", audioUrl: "audio/21_2.mp3" },
+            { lesson: 21, id: "21.3", text: "日本語について、どう　思いますか。", audioUrl: "audio/21_3.mp3" },
+            { lesson: 21, id: "21.4", text: "仕事と　家族と　どちらが　大切だと　思いますか。", audioUrl: "audio/21_4.mp3" },
+            { lesson: 21, id: "21.5", text: "友達が　病気です。友達に　何と　言いますか。", audioUrl: "audio/21_5.mp3" },
+            { lesson: 21, id: "21.6", text: "明日は　天気が　いいと　思いますか。", audioUrl: "audio/21_6.mp3" },
+            { lesson: 21, id: "21.7", text: "日本について、どう　思いますか。", audioUrl: "audio/21_7.mp3" },
+            { lesson: 22, id: "22.1", text: "今、一番欲しい　ものは　何ですか。", audioUrl: "audio/22_1.mp3" },
+            { lesson: 22, id: "22.2", text: "最近、楽しかった　ことは　ありませんか。", audioUrl: "audio/22_2.mp3" },
+            { lesson: 22, id: "22.3", text: "あなたが　生まれた　ところは　どこですか。", audioUrl: "audio/22_3.mp3" },
+            { lesson: 22, id: "22.4", text: "初めて　習った　外国語は　なんですか。", audioUrl: "audio/22_4.mp3" },
+            { lesson: 22, id: "22.5", text: "しっている　野菜の名前を　教えてください。", audioUrl: "audio/22_5.mp3" },
+            { lesson: 22, id: "22.6", text: "お母さんが　作った　料理が　好きですか。", audioUrl: "audio/22_6.mp3" },
+            { lesson: 22, id: "22.7", text: "将来、日本語を使う　仕事がしたいですか。", audioUrl: "audio/22_7.mp3" },
+            { lesson: 23, id: "23.1", text: "子供の時　どこに　住んでいましたか。", audioUrl: "audio/23_1.mp3" },
+            { lesson: 23, id: "23.2", text: "日本へ行って、道が　わからない時　どうしますか。", audioUrl: "audio/23_2.mp3" },
+            { lesson: 23, id: "23.3", text: "疲れた時、どうしますか。", audioUrl: "audio/23_3.mp3" },
+            { lesson: 23, id: "23.4", text: "寂しいとき、どうしますか。", audioUrl: "audio/23_4.mp3" },
+            { lesson: 23, id: "23.5", text: "よく　聞こえないとき、何と言いますか。", audioUrl: "audio/23_5.mp3" },
+            { lesson: 23, id: "23.6", text: "日本で　冬になると　どうなりますか。", audioUrl: "audio/23_6.mp3" },
+            { lesson: 23, id: "23.7", text: "たくさん　お酒を飲むと　どうなりますか。", audioUrl: "audio/23_7.mp3" },
+            { lesson: 24, id: "24.1", text: "お母さんの　誕生日に　なにをして　あげたいですか。", audioUrl: "audio/24_1.mp3" },
+            { lesson: 24, id: "24.2", text: "子供の時、誕生日に　何を買って　もらいましたか。", audioUrl: "audio/24_2.mp3" },
+            { lesson: 24, id: "24.3", text: "外国人の　友達が来た時、ベトナムの　どこを　案内して　あげたいですか。", audioUrl: "audio/24_3.mp3" },
+            { lesson: 24, id: "24.4", text: "あなたが　病気になった時に、友達が　何をして　くれましたか。", audioUrl: "audio/24_4.mp3" },
+            { lesson: 24, id: "24.5", text: "センターで　勉強する時、先生に　何をして　もらいましたか", audioUrl: "audio/24_5.mp3" },
+            { lesson: 24, id: "24.6", text: "去年の　誕生日に　プレゼントを　買って　もらいましたか。", audioUrl: "audio/24_6.mp3" },
+            { lesson: 24, id: "24.7", text: "誰が　日本語を　教えて　くれましたか。", audioUrl: "audio/24_7.mp3" },
+            { lesson: 25, id: "25.1", text: "もし　お金が　たくさんあったら、なにを　したいですか。", audioUrl: "audio/25_1.mp3" },
+            { lesson: 25, id: "25.2", text: "体の調子が　悪かったら、どうしますか。", audioUrl: "audio/25_2.mp3" },
+            { lesson: 25, id: "25.3", text: "日曜日でも　勉強したり　働いたり　しますか。", audioUrl: "audio/25_3.mp3" },
+            { lesson: 25, id: "25.4", text: "会社で　仕事が　わからなかったら、どうしますか。", audioUrl: "audio/25_4.mp3" },
+            { lesson: 25, id: "25.5", text: "恋人は　お金が　なくても、結婚しますか。", audioUrl: "audio/25_5.mp3" },
+            { lesson: 25, id: "25.6", text: "年を　とっても、働きたいですか。", audioUrl: "audio/25_6.mp3" },
+            { lesson: 25, id: "25.7", text: "日曜日、いい天気だったら、どこへ　遊びに　行きたいですか。", audioUrl: "audio/25_7.mp3" },
+            { lesson: 26, id: "26.1", text: "昨日、うちへ　帰るときに、財布を　拾ったんですが、どうしたらいいですか。", audioUrl: "audio/26_1.mp3" },
+            { lesson: 26, id: "26.2", text: "ベトナム人の　家に　行くんですが、どんなお土産を　持って 行ったらいいですか。", audioUrl: "audio/26_2.mp3" },
+            { lesson: 26, id: "26.3", text: "仕事が　分からない時、先輩に　教えて　もらいたいんですが、なんと言いますか。", audioUrl: "audio/26_3.mp3" },
+            { lesson: 26, id: "26.4", text: "ベトナムを　旅行したいんですが、何月が　いいですか。", audioUrl: "audio/26_4.mp3" },
+            { lesson: 26, id: "26.5", text: "日本語を　勉強したいんですが、どこか　いいところを　紹介して　いただけませんか。", audioUrl: "audio/26_5.mp3" },
+            { lesson: 26, id: "26.6", text: "京都へ　行きたいんですが、道を　教えて　いただけませんか。", audioUrl: "audio/26_6.mp3" },
+            { lesson: 26, id: "26.7", text: "朝から　ミラーさんが　いません。彼は　今日　休んだんですか。", audioUrl: "audio/26_7.mp3" },
+            { lesson: 27, id: "27.1", text: "人に　初めて　会った時、すぐ　名前が　覚えられますか。", audioUrl: "audio/27_1.mp3" },
+            { lesson: 27, id: "27.2", text: "海に　住んだら、何が　聞こえますか。", audioUrl: "audio/27_2.mp3" },
+            { lesson: 27, id: "27.3", text: "自分で　料理が　作れますか。どんな料理が　作れますか。", audioUrl: "audio/27_3.mp3" },
+            { lesson: 27, id: "27.4", text: "寮の　部屋から　何が　見えますか。", audioUrl: "audio/27_4.mp3" },
+            { lesson: 27, id: "27.5", text: "あなたが　住むところから　富士山が　見えますか。", audioUrl: "audio/27_5.mp3" },
+            { lesson: 27, id: "27.6", text: "日本語の　新聞が　読めますか。", audioUrl: "audio/27_6.mp3" },
+            { lesson: 27, id: "27.7", text: "あなたは　泳げますか。何メートルぐらい　泳げますか。", audioUrl: "audio/27_7.mp3" },
+            { lesson: 28, id: "28.1", text: "暇な時、何を　していますか。", audioUrl: "audio/28_1.mp3" },
+            { lesson: 28, id: "28.2", text: "高校生の　時、毎日　学校が　終わってから、よく　何を していましたか", audioUrl: "audio/28_2.mp3" },
+            { lesson: 28, id: "28.3", text: "日本で　日本語の勉強を　続けならが　仕事をしますか。", audioUrl: "audio/28_3.mp3" },
+            { lesson: 28, id: "28.4", text: "教室で 食べながら、勉強しても いいですか。", audioUrl: "audio/28_4.mp3" },
+            { lesson: 28, id: "28.5", text: "日本語は　どう　思いますか。", audioUrl: "audio/28_5.mp3" },
+            { lesson: 28, id: "28.6", text: "どうして　 日本語を　勉強していますか。", audioUrl: "audio/28_6.mp3" },
+            { lesson: 28, id: "28.7", text: "あなたの　仕事について　どう思いますか。", audioUrl: "audio/28_7.mp3" },
+            { lesson: 29, id: "29.1", text: "今 　電気が　 ついていますか。", audioUrl: "audio/29_1.mp3" },
+            { lesson: 29, id: "29.2", text: "今　 教室の窓が　 閉まっていますか 開いていますか。", audioUrl: "audio/29_2.mp3" },
+            { lesson: 29, id: "29.3", text: "今 へやの せんぷうきは　 どうなっていますか。", audioUrl: "audio/29_3.mp3" },
+            { lesson: 29, id: "29.4", text: "もう　 宿題を　して しまいましたか。", audioUrl: "audio/29_4.mp3" },
+            { lesson: 29, id: "29.5", text: "今まで 　友だちと 　けんかしてしまったことが ありますか。", audioUrl: "audio/29_5.mp3" },
+            { lesson: 29, id: "29.6", text: "今まで 　お金を　 落としてしまったことが ありますか。", audioUrl: "audio/29_6.mp3" },
+            { lesson: 29, id: "29.7", text: "高校生の時、宿題を　忘れてしまったことがありますか。", audioUrl: "audio/29_7.mp3" },
+            { lesson: 30, id: "30.1", text: "教室の壁に　カレンダが　かけてありますか。", audioUrl: "audio/30_1.mp3" },
+            { lesson: 30, id: "30.2", text: "教室に　何が　置いてありますか。", audioUrl: "audio/30_2.mp3" },
+            { lesson: 30, id: "30.3", text: "部屋に　何が　貼ってありますか。", audioUrl: "audio/30_3.mp3" },
+            { lesson: 30, id: "30.4", text: "授業のまえに、何を しておきますか。", audioUrl: "audio/30_4.mp3" },
+            { lesson: 30, id: "30.5", text: "授業が終わった後で、なにをしておきますか。", audioUrl: "audio/30_5.mp3" },
+            { lesson: 30, id: "30.6", text: "日本へ　行く前に、何を準備しておいたらいいですか。", audioUrl: "audio/30_6.mp3" },
+            { lesson: 30, id: "30.7", text: "パーティーの前に、何を準備しておきますか。", audioUrl: "audio/30_7.mp3" },
+            { lesson: 31, id: "31.1", text: "今夜、何をしようと思っていますか。", audioUrl: "audio/31_1.mp3" },
+            { lesson: 31, id: "31.2", text: "休みの日は 　どこへ行こうと思っていますか。", audioUrl: "audio/31_2.mp3" },
+            { lesson: 31, id: "31.3", text: "日本へ行ってから、日本語の勉強を続けるつもりですか。", audioUrl: "audio/31_3.mp3" },
+            { lesson: 31, id: "31.4", text: "実習が終わって、国へ帰ったら、どんな仕事をするつもりですか。", audioUrl: "audio/31_4.mp3" },
+            { lesson: 31, id: "31.5", text: "N4という試験の予定は　いつですか。", audioUrl: "audio/31_5.mp3" },
+            { lesson: 31, id: "31.6", text: "今週末、何か予定が　ありますか。", audioUrl: "audio/31_6.mp3" },
+            { lesson: 31, id: "31.7", text: "N4の漢字を　全部　覚えていますか。", audioUrl: "audio/31_7.mp3" },
+            { lesson: 32, id: "32.1", text: "かぜをひいたとき、何をしたほうがいいですか。", audioUrl: "audio/32_1.mp3" },
+            { lesson: 32, id: "32.2", text: "最近、夜　寝られないんですが、薬を飲んだ方がいいと思いますか。", audioUrl: "audio/32_2.mp3" },
+            { lesson: 32, id: "32.3", text: "旅行のとき、現金を持った方がいいと思いますか。カードを持った方がいいと思いますか。", audioUrl: "audio/32_3.mp3" },
+            { lesson: 32, id: "32.4", text: "テストの前に　何をしないほうがいいですか", audioUrl: "audio/32_4.mp3" },
+            { lesson: 32, id: "32.5", text: "明日は　いい天気でしょうか", audioUrl: "audio/32_5.mp3" },
+            { lesson: 32, id: "32.6", text: "N4という試験は　難しいでしょうか", audioUrl: "audio/32_6.mp3" },
+            { lesson: 32, id: "32.7", text: "雨が　降るかもしれません。傘を持って行ったほうがいいですか", audioUrl: "audio/32_7.mp3" },
+            { lesson: 33, id: "33.1", text: "「立ち入り禁止」は　どういう意味ですか。", audioUrl: "audio/33_1.mp3" },
+            { lesson: 33, id: "33.2", text: "「故障」は　どういう意味ですか。", audioUrl: "audio/33_2.mp3" },
+            { lesson: 33, id: "33.3", text: "「使用禁止」は　どういう意味ですか。", audioUrl: "audio/33_3.mp3" },
+            { lesson: 33, id: "33.4", text: "「無料」は　どういう意味ですか。", audioUrl: "audio/33_4.mp3" },
+            { lesson: 33, id: "33.5", text: "日本人は　スポーツの試合で「頑張れ」という言葉を使います。あなたの国で　どんな言葉を　使いますか", audioUrl: "audio/33_5.mp3" },
+            { lesson: 33, id: "33.6", text: "部長に「明日は休み」と伝えていただけませんか", audioUrl: "audio/33_6.mp3" },
+            { lesson: 33, id: "33.7", text: "先生は　授業の前に　何と言っていましたか", audioUrl: "audio/33_7.mp3" },
+            { lesson: 34, id: "34.1", text: "毎日、授業が終わった後で、何をしていますか。", audioUrl: "audio/34_1.mp3" },
+            { lesson: 34, id: "34.2", text: "毎日、シャワーを浴びた後で、何をしていますか。", audioUrl: "audio/34_2.mp3" },
+            { lesson: 34, id: "34.3", text: "料理の本のとおりに料理を　作ったことがありますか", audioUrl: "audio/34_3.mp3" },
+            { lesson: 34, id: "34.4", text: "夜、寝ないで、勉強したことがありますか", audioUrl: "audio/34_4.mp3" },
+            { lesson: 34, id: "34.5", text: "シャワーを浴びないで、寝たことがありますか。", audioUrl: "audio/34_5.mp3" },
+            { lesson: 34, id: "34.6", text: "朝ご飯を食べないで、学校へ　行ったことがありますか", audioUrl: "audio/34_6.mp3" },
+            { lesson: 34, id: "34.7", text: "あなたの国では、お葬式にどんな服を着ていきますか", audioUrl: "audio/34_7.mp3" },
+            { lesson: 35, id: "35.1", text: "たくさんお金があれば、何をしたいですか。", audioUrl: "audio/35_1.mp3" },
+            { lesson: 35, id: "35.2", text: "毎日運動すれば、どうなりますか", audioUrl: "audio/35_2.mp3" },
+            { lesson: 35, id: "35.3", text: "宿題をしなければ、先生になんといったらいいですか。", audioUrl: "audio/35_3.mp3" },
+            { lesson: 35, id: "35.4", text: "天気がよければ、どこに行きたいですか", audioUrl: "audio/35_4.mp3" },
+            { lesson: 35, id: "35.5", text: "日本語が　上手になりたいんですが、どうすればいいですか", audioUrl: "audio/35_5.mp3" },
+            { lesson: 35, id: "35.6", text: "病気のときは　何を食べればいいですか", audioUrl: "audio/35_6.mp3" },
+            { lesson: 35, id: "35.7", text: "道がわからないとき、どうすればいいですか", audioUrl: "audio/35_7.mp3" }
+        ];
+
+        // Group questions by lesson
+        const lessons = [...new Set(questions.map(q => q.lesson))].sort((a, b) => a - b);
+
+        // Populate lesson select dropdown
+        const lessonSelect = document.getElementById('lessonSelect');
+        lessons.forEach(lesson => {
+            const option = document.createElement('option');
+            option.value = lesson;
+            option.textContent = `Lesson ${lesson}`;
+            lessonSelect.appendChild(option);
+        });
+
+        // Render questions grouped by lesson (initially hidden)
+        const questionsContainer = document.getElementById('questionsContainer');
+        lessons.forEach(lesson => {
+            const lessonDiv = document.createElement('div');
+            lessonDiv.className = `lesson-div hidden bg-white p-6 rounded-lg shadow-md`;
+            lessonDiv.dataset.lesson = lesson;
+            lessonDiv.innerHTML = `<h2 class="text-2xl font-semibold text-indigo-700 mb-4">Lesson ${lesson}</h2>`;
+            const lessonQuestions = questions.filter(q => q.lesson === lesson);
+            lessonQuestions.forEach(q => {
+                const questionDiv = document.createElement('div');
+                questionDiv.className = 'question-card flex items-center justify-between p-3 border-b border-gray-200';
+                questionDiv.innerHTML = `
+                    <span class="text-lg text-gray-800">${q.id}: ${q.text}</span>
+                    <button class="play-audio bg-teal-100 p-2 rounded-full hover:bg-teal-200 transition duration-200" data-audio="${q.audioUrl}">
+                        <svg class="w-6 h-6 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707A1 1 0 0112 5v14a1 1 0 01-1.707.707L5.586 15z"></path>
+                        </svg>
+                    </button>
+                `;
+                lessonDiv.appendChild(questionDiv);
+            });
+            questionsContainer.appendChild(lessonDiv);
+        });
+
+        // Audio playback logic
+        let currentAudio = null;
+        let isPlaying = false;
+        let playbackQueue = [];
+        let currentIndex = 0;
+
+        // Error message display function
+        const errorMessageDiv = document.getElementById('errorMessage');
+        function showError(message) {
+            errorMessageDiv.textContent = message;
+            errorMessageDiv.classList.remove('hidden');
+            setTimeout(() => {
+                errorMessageDiv.classList.add('hidden');
+            }, 5000); // Hide after 5 seconds
+        }
+
+        function playAudio(url) {
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio.currentTime = 0;
+            }
+
+            try {
+                currentAudio = new Audio(url);
+                currentAudio.play().then(() => {
+                    isPlaying = true;
+                }).catch(error => {
+                    isPlaying = false;
+                    showError(`Failed to play audio for ${url}: ${error.message}`);
+                    // Move to next audio in queue if available
+                    if (playbackQueue.length > 0 && currentIndex < playbackQueue.length - 1) {
+                        currentIndex++;
+                        playAudio(playbackQueue[currentIndex]);
+                    } else {
+                        currentIndex = 0;
+                        playbackQueue = [];
+                    }
+                });
+
+                currentAudio.onended = () => {
+                    isPlaying = false;
+                    if (playbackQueue.length > 0 && currentIndex < playbackQueue.length - 1) {
+                        currentIndex++;
+                        playAudio(playbackQueue[currentIndex]);
+                    } else {
+                        currentIndex = 0;
+                        playbackQueue = [];
+                    }
+                };
+
+                currentAudio.onerror = () => {
+                    isPlaying = false;
+                    showError(`Error loading audio file: ${url}`);
+                    // Move to next audio in queue if available
+                    if (playbackQueue.length > 0 && currentIndex < playbackQueue.length - 1) {
+                        currentIndex++;
+                        playAudio(playbackQueue[currentIndex]);
+                    } else {
+                        currentIndex = 0;
+                        playbackQueue = [];
+                    }
+                };
+            } catch (error) {
+                isPlaying = false;
+                showError(`Error initializing audio for ${url}: ${error.message}`);
+            }
+        }
+
+        // Play individual audio on speaker click
+        document.querySelectorAll('.play-audio').forEach(button => {
+            button.addEventListener('click', () => {
+                const url = button.getAttribute('data-audio');
+                playbackQueue = [url];
+                currentIndex = 0;
+                playAudio(url);
+            });
+        });
+
+        // Toggle lesson selection visibility
+        const lessonSelectContainer = document.getElementById('lessonSelectContainer');
+        document.getElementById('playLessonBtn').addEventListener('click', () => {
+            lessonSelectContainer.classList.remove('hidden');
+            lessonSelect.focus();
+        });
+
+        // Confirm lesson selection and play audio
+        document.getElementById('confirmBtn').addEventListener('click', () => {
+            const selectedLessons = Array.from(lessonSelect.selectedOptions).map(option => parseInt(option.value));
+            if (selectedLessons.length === 0) {
+                showError('Please select at least one lesson.');
+                return;
+            }
+            document.querySelectorAll('.lesson-div').forEach(div => {
+                const lessonNum = parseInt(div.dataset.lesson);
+                if (selectedLessons.includes(lessonNum)) {
+                    div.classList.remove('hidden');
+                } else {
+                    div.classList.add('hidden');
+                }
+            });
+
+            // Update playback queue with audio from selected lessons
+            playbackQueue = questions
+                .filter(q => selectedLessons.includes(q.lesson))
+                .map(q => q.audioUrl);
+            currentIndex = 0;
+            if (playbackQueue.length > 0) {
+                playAudio(playbackQueue[currentIndex]);
+            } else {
+                showError('No audio files available for selected lessons.');
+            }
+            lessonSelectContainer.classList.add('hidden');
+        });
+
+        // Play all
+        document.getElementById('playAllBtn').addEventListener('click', () => {
+            // Show all lessons
+            document.querySelectorAll('.lesson-div').forEach(div => {
+                div.classList.remove('hidden');
+            });
+            playbackQueue = questions.map(q => q.audioUrl);
+            currentIndex = 0;
+            if (playbackQueue.length > 0) {
+                playAudio(playbackQueue[currentIndex]);
+            } else {
+                showError('No audio files available.');
+            }
+            lessonSelectContainer.classList.add('hidden');
+        });
+
+        // Stop playback
+        document.getElementById('stopBtn').addEventListener('click', () => {
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio.currentTime = 0;
+            }
+            isPlaying = false;
+            playbackQueue = [];
+            currentIndex = 0;
+            errorMessageDiv.classList.add('hidden');
+            lessonSelectContainer.classList.add('hidden');
+        });
+    </script>
+</body>
+</html>
